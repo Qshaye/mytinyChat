@@ -413,13 +413,12 @@ bool HttpConnection::tranGroupMsg() {
     std::cout << "HttpConnection: message:" << m_read_buf << std::endl;
     // 获取发送方的用户名
     std::string from = m_sock_names[m_sock_fd];
-    content = '[' + cur_group + ':' + from + ']' + content;
+    content = '[' + std::to_string(cur_group) + ':' + from + ']' + content;
     
     std::cout << "HttpConnextion: sending group " << cur_group << " massage" << std::endl;
     // 逐个成员发送
     for (auto sock_fd : m_group[cur_group]) {
         conns_pool[sock_fd].setWriteBuffer(content);
-    }
     }
     Util::modifyFd(m_epoll_fd, m_sock_fd, EPOLLIN);
     
