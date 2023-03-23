@@ -427,7 +427,7 @@ bool HttpConnection::tranGroupMsg() {
 
 /*关闭连接*/
 void HttpConnection::closeConn() {
-    //关闭此连接，留着新的连接到来时候重用
+    // 关闭此连接，留着新的连接到来时候重用
     if (m_sock_fd != -1) {
         Util::removeFd(m_epoll_fd, m_sock_fd);
         m_sock_fd = -1;
