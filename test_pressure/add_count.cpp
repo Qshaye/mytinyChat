@@ -12,7 +12,7 @@ using namespace std;
 int main(){    
     // 连接MYSQL数据库
     MYSQL *con=mysql_init(NULL);
-    mysql_real_connect(con, "127.0.0.1", "root", "19991107", "test_connect", 0, NULL,CLIENT_MULTI_STATEMENTS);    
+    mysql_real_connect(con, "127.0.0.1", "root", "qiu11.29", "test_connect", 0, NULL, CLIENT_MULTI_STATEMENTS);    
     
     cout << "连接成功" << endl;
     // 随机生成用户名和密码，保存到本地txt文件，并写入数据库

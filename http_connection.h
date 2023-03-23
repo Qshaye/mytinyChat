@@ -58,6 +58,8 @@ public:
     // 源地址与目的地映射
     static std::unordered_map<std::string, std::string> m_sour_dest;
 
+    static MysqlConnection mysql_g;
+
     // 用户名与socket映射的互斥锁
     static Locker m_name_sock_mutex;
 

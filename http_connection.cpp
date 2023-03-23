@@ -6,6 +6,7 @@
 int HttpConnection::m_epoll_fd = -1;
 int HttpConnection::m_user_num = 0;
 BloomFilter HttpConnection::m_bloom_filter = BloomFilter();
+MysqlConnection HttpConnection::mysql_g = MysqlConnection();
 Locker HttpConnection::m_name_sock_mutex = Locker();
 Locker HttpConnection::m_sock_name_mutex = Locker();
 Locker HttpConnection::m_group_mutex = Locker();
@@ -89,14 +90,14 @@ void HttpConnection::process() {
         std::cout << "HttpConnection: make reply fail!" << std::endl;
         closeConn();
     }
-    std::cout << "\t write result:" << m_write_buf << std::endl;
-    std::cout << "\t write bytes:" << bytes_to_send << std::endl;
+    // std::cout << "\t write result:" << m_write_buf << std::endl;
+    // std::cout << "\t write bytes:" << bytes_to_send << std::endl;
 }
 
 /*分析请求类型*/
 HttpConnection::QUERY_CODE HttpConnection::parseRequest() {
     std::string request = m_read_buf;
-    std::cout << "parseRequest:" << request << std::endl;
+    // std::cout << "parseRequest:" << request << std::endl;
     
     if (request.find("cookie:") != request.npos) {
         return COOKIE;
@@ -201,7 +202,7 @@ std::string HttpConnection::checkSession() {
 
 /*验证登录信息*/
 bool HttpConnection::login() {
-    std::cout << "HttpConnection: logining!" << std::endl;
+    // std::cout << "HttpConnection: logining!" << std::endl;
     std::string request = m_read_buf;
     // "login....pass:..."
     int pos_name = request.find("login");
@@ -209,8 +210,7 @@ bool HttpConnection::login() {
     std::string name = request.substr(pos_name + 5, pos_pwd - 5);
     std::string pwd = request.substr(pos_pwd + 5);
 
-    //测试：出名字密码
-    std::cout << "name: " << name << " password: " << pwd << std::endl;
+    // std::cout << "name: " << name << " password: " << pwd << std::endl;
 
     // 布隆过滤器过滤，若不存在在数据库，必被过滤
     if (!m_bloom_filter.get(name)) {
@@ -221,12 +221,10 @@ bool HttpConnection::login() {
         Util::modifyFd(m_epoll_fd, m_sock_fd, EPOLLOUT);
         return false;
     }
-    MysqlConnection mysql_conn;
-    mysql_conn.init();
-    mysql_conn.connect();
+
     std::string sql = "SELECT * FROM user WHERE name = '" + name 
             + "' AND password = '" + pwd + "'";
-    auto result = mysql_conn.query(sql);
+    auto result = mysql_g.query(sql);
 
     // 用户不存在数据库
     if (result.empty()) {
@@ -237,8 +235,6 @@ bool HttpConnection::login() {
         Util::modifyFd(m_epoll_fd, m_sock_fd, EPOLLOUT);
         return true;
     }
-    // 关闭数据库
-    mysql_conn.close();
 
     // 用户登录成功，生成 session_id
     std::string ses_id = Util::makeSesId();
@@ -251,7 +247,7 @@ bool HttpConnection::login() {
     cmd = "expire " + ses_id + " 300";
     redis_conn.query(cmd);
     redis_conn.close();
-    std::cout << "HttpConnection: login succeeded! make sessionid: " + ses_id << std::endl;
+    // std::cout << "HttpConnection: login succeeded! make sessionid: " + ses_id << std::endl;
 
     // 记录在线信息，将当前socket与用户名双向映射在一起
     // name->socket
@@ -286,27 +282,20 @@ bool HttpConnection::registerUser() {
     // std::cout << "name: " << name << " password: " << pwd << std::endl;
 
     // 访问数据库查询有无用户
-    MysqlConnection mysql_conn;
-    mysql_conn.init();
-    mysql_conn.connect();
     std::string sql = "SELECT * FROM user WHERE name = '" + name 
             + "' AND password = '" + pwd + "'";
-    auto result = mysql_conn.query(sql);
+    auto result = mysql_g.query(sql);
 
     // 用户存在数据库,则无法注册
     if (!result.empty()) {
         std::cout << "HttpConnection: register fail! username exists!" << std::endl;
-        // 关闭数据库
-        mysql_conn.close();
         // 重置读事件
         Util::modifyFd(m_epoll_fd, m_sock_fd, EPOLLIN);
         return true;
     }
     
     sql = "INSERT INTO user VALUES('" + name + "', '" + pwd + "')";
-    result = mysql_conn.query(sql);
-    // 关闭数据库
-    mysql_conn.close();
+    result = mysql_g.query(sql);
 
     // 更新布隆过滤器
     m_bloom_filter.add(name);
@@ -437,7 +426,7 @@ void HttpConnection::closeConn() {
 
 /*模拟proactor模式由主线程调用：非阻塞一次性读*/
 bool HttpConnection::readData() {
-    std::cout << "HttpConnection: main thread reading!" << std::endl;
+    // std::cout << "HttpConnection: main thread reading!" << std::endl;
     if (m_read_index >= READ_BUFFER_SIZE) {
         std::cout << "HttpConnection: read buffer is full!" << std::endl;
         return false;
@@ -458,14 +447,14 @@ bool HttpConnection::readData() {
             }
             return false;
         } else if (bytes_read == 0) {
-            std::cout << "HttpConnection: client exit!" << std::endl;
+            // std::cout << "HttpConnection: client exit!" << std::endl;
             return false;
         }
         //读取成功
         m_read_index += bytes_read;
     }
 
-    std::cout << "HttpConnection: read succeeded!" << std::endl;
+    // std::cout << "HttpConnection: read succeeded!" << std::endl;
 
     // 重置读事件
     // Util::modifyFd(m_epoll_fd, m_sock_fd, EPOLLIN);
@@ -474,7 +463,7 @@ bool HttpConnection::readData() {
 
 /*模拟proactor模式由主线程调用：非阻塞一次性写*/
 bool HttpConnection::writeData() {
-    std::cout << "HttpConnection: main thread starts to write!" << std::endl;
+    // std::cout << "HttpConnection: main thread starts to write!" << std::endl;
 
     // 无数据写
     if (bytes_to_send == 0) {
@@ -502,7 +491,7 @@ bool HttpConnection::writeData() {
     // 清空写缓冲
     memset(m_write_buf, 0, WRITE_BUFFER_SIZE);
 
-    std::cout << "HttpConnection: write succeeded!" << std::endl;
+    // std::cout << "HttpConnection: write succeeded!" << std::endl;
     // 重置读事件
     Util::modifyFd(m_epoll_fd, m_sock_fd, EPOLLIN);
     return true;

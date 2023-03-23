@@ -38,7 +38,10 @@ int main(int argc, char* argv[]) {
 
     // 初始化布隆过滤器(静态成员变量，BloomFilter类型)
     HttpConnection::m_bloom_filter.init();
+
     //读取数据库user表的数据，将用户名哈希到布隆过滤器的位图
+    HttpConnection::mysql_g.init();
+    HttpConnection::mysql_g.connect();
     MysqlConnection mysql_conn;
     mysql_conn.init();
     mysql_conn.connect();
@@ -83,7 +86,7 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         
-        std::cout << "Server: waiting for message or connection!" << std::endl;
+        // std::cout << "Server: waiting for message or connection!" << std::endl;
         // 等待事件发生，最后一个参数表示超时时间，负数表示一直等待
         int cnt = epoll_wait(epoll_fd, events, MAX_EVENT_NUM, -1);
         //服务器出错，则关闭服务器
@@ -121,7 +124,7 @@ int main(int argc, char* argv[]) {
             // 可以通过 events 字段来判断具体是哪些事件就绪了
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) 
             { 
-                std::cout << "Server: connection error, unlinking the user!" << std::endl;
+                // std::cout << "Server: connection error, unlinking the user!" << std::endl;
                 conns_pool[sock_fd].closeConn();
             } 
             else if (events[i].events & EPOLLIN)    // 读事件
